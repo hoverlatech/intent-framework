@@ -1,0 +1,129 @@
+# INTENT Framework v0.5 - Scenario Bank
+#
+# Scenario Bank is the holdout set used during VALIDATE to prove behavior aligns with intent.
+# This template extends Spec Kit with runtime-governance fields for agent-facing systems.
+
+schema_version: "1.1"
+intent_contract: "[###-feature-name]/intent-contract.md"
+proof_tier_target: "P2"
+runtime_governance_required: true
+
+scenarios:
+  - id: "S001"
+    name: "Happy path - [primary user action]"
+    source: "spec"                 # spec | clarification | production | incident
+    priority: "critical"           # critical | important | edge-case
+    state_path:                      # required when runtime_governance_required = true
+      - "GREETING"
+      - "INFO_GATHERING"
+      - "RESOLUTION"
+      - "CLOSING"
+    escalation_class: "E0"         # E0=no escalation, E1=urgent, E2=critical, or project-defined class
+    trust_envelope_categories:       # allowed runtime output categories used in this scenario
+      - "TE-1"
+      - "TE-2"
+    preconditions:
+      - "[System state before scenario starts]"
+      - "[User/context state]"
+    steps:
+      - actor: "user"              # user | system | external
+        action: "[What the actor does]"
+      - actor: "system"
+        action: "[How the system responds]"
+      - actor: "user"
+        action: "[Next user action]"
+      - actor: "system"
+        action: "[Final response/action]"
+    expected_outcome: >
+      [Observable result. User-visible behavior plus system state change.]
+    failure_mode: >
+      [What failure looks like and what recovery should occur.]
+    signals_to_capture:
+      - name: "response_time_ms"
+        type: "latency"            # latency | count | rate | boolean | threshold
+        target: "< 200ms p95"
+      - name: "completion_rate"
+        type: "rate"
+        target: "> 95%"
+    runtime_checks:                  # required when runtime_governance_required = true
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "state_violation"
+        target: "0"
+    automation_status: "none"      # none | manual | automated | ci-integrated
+
+  - id: "S002"
+    name: "Edge case - [boundary condition]"
+    source: "spec"
+    priority: "important"
+    state_path:
+      - "INFO_GATHERING"
+      - "BOUNDARY_HANDLING"
+      - "RESOLUTION"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-2"
+      - "TE-4"
+    preconditions:
+      - "[Boundary setup]"
+    steps:
+      - actor: "user"
+        action: "[Action that hits the boundary]"
+      - actor: "system"
+        action: "[System handles boundary]"
+    expected_outcome: >
+      [Clear feedback with no corruption and consistent state.]
+    failure_mode: >
+      [What happens if boundary is mishandled.]
+    signals_to_capture:
+      - name: "boundary_error_rate"
+        type: "rate"
+        target: "< 0.5%"
+    runtime_checks:
+      - name: "unauthorized_category_output"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S003"
+    name: "Failure recovery - [specific error condition]"
+    source: "spec"
+    priority: "critical"
+    state_path:
+      - "INFO_GATHERING"
+      - "ERROR_DETECTED"
+      - "ESCALATION_PENDING"
+      - "ESCALATED"
+    escalation_class: "E1"
+    trust_envelope_categories:
+      - "TE-5"
+      - "TE-7"
+    preconditions:
+      - "[Error condition setup]"
+    steps:
+      - actor: "user"
+        action: "[Action that triggers failure path]"
+      - actor: "system"
+        action: "[Error detection and escalation handling]"
+      - actor: "user"
+        action: "[Recovery or confirmation action]"
+    expected_outcome: >
+      [Clear recovery path and successful escalation behavior.]
+    failure_mode: >
+      [Cascading failure if escalation/recovery does not happen.]
+    signals_to_capture:
+      - name: "error_rate"
+        type: "rate"
+        target: "< 0.1%"
+      - name: "recovery_success_rate"
+        type: "rate"
+        target: "> 99%"
+    runtime_checks:
+      - name: "missed_escalation_rate"
+        target: "< 1%"
+      - name: "escalation_success_rate"
+        target: "> 99%"
+    automation_status: "none"
+
+# LEARN phase additions:
+# Add production- or incident-discovered scenarios below with `source` set to
+# production/incident and include discovery metadata.

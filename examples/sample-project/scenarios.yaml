@@ -1,0 +1,330 @@
+# INTENT Framework v0.5 - Scenario Bank
+#
+# Scenario Bank for DocSearch Semantic Search feature.
+# These scenarios are the holdout set used during VALIDATE to prove behavior aligns with intent.
+
+schema_version: "1.1"
+intent_contract: "042-semantic-search/intent-contract.md"
+proof_tier_target: "P2"
+runtime_governance_required: true
+
+scenarios:
+  - id: "S001"
+    name: "Happy path - natural language search with multi-source answer"
+    source: "spec"
+    priority: "critical"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-2"
+      - "TE-3"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "All four source connectors (Confluence, GitHub Wiki, Notion, Google Docs) are healthy"
+      - "Search index is current (last sync < 1 hour ago)"
+    steps:
+      - actor: "user"
+        action: "Types 'How do I set up local development for the payments service?' into the search bar and submits"
+      - actor: "system"
+        action: "Parses query, generates embedding, performs vector similarity search across all sources"
+      - actor: "system"
+        action: "Ranks results by relevance, filters by user access permissions, selects top chunks"
+      - actor: "system"
+        action: "Generates synthesized answer citing 3 sources (Confluence setup guide, GitHub wiki troubleshooting, Notion onboarding doc)"
+      - actor: "user"
+        action: "Clicks a source citation link"
+      - actor: "system"
+        action: "Opens the original document in the source system in a new tab"
+    expected_outcome: >
+      User receives an accurate, well-cited answer within 10 seconds. All cited sources are
+      documents the user has access to in the original source systems. Answer includes inline
+      citations that link to specific documents.
+    failure_mode: >
+      If ranking or synthesis fails, system falls back to displaying raw search results
+      without synthesis. Ranking failure is logged with query context for investigation.
+    signals_to_capture:
+      - name: "search_latency_ms"
+        type: "latency"
+        target: "< 2000ms p95"
+      - name: "answer_generation_latency_ms"
+        type: "latency"
+        target: "< 5000ms p95"
+      - name: "relevance_rating"
+        type: "rate"
+        target: "> 80% positive"
+      - name: "sources_cited_count"
+        type: "count"
+        target: ">= 1"
+    runtime_checks:
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "state_violation"
+        target: "0"
+      - name: "access_control_bypass"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S002"
+    name: "No results found - query with no matching documentation"
+    source: "spec"
+    priority: "critical"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-5"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "Search index is current"
+      - "No documentation exists for the queried topic"
+    steps:
+      - actor: "user"
+        action: "Searches for 'quantum computing deployment pipeline'"
+      - actor: "system"
+        action: "Processes query, performs vector search, finds no results above relevance threshold (0.65 cosine similarity)"
+      - actor: "system"
+        action: "Displays 'No matching documentation found' message with suggestions: check spelling, try different terms, or request documentation creation"
+    expected_outcome: >
+      User clearly understands no matching documentation exists. System does NOT generate a
+      fabricated answer. Helpful suggestions are displayed. The interaction completes cleanly
+      and returns to idle state.
+    failure_mode: >
+      If the system generates a hallucinated answer instead of showing 'no results,' this is
+      a trust envelope violation (TE-2 boundary breach). Log as critical, trigger review.
+    signals_to_capture:
+      - name: "no_results_rate"
+        type: "rate"
+        target: "tracking only"
+      - name: "hallucination_on_empty"
+        type: "boolean"
+        target: "false"
+    runtime_checks:
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "fabricated_answer_on_no_results"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S003"
+    name: "Ambiguous query - clarification flow"
+    source: "spec"
+    priority: "important"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-4"
+      - "ST-2"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-2"
+      - "TE-3"
+      - "TE-4"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "Search index is current"
+      - "The term 'service mesh' appears in documentation for three distinct internal projects"
+    steps:
+      - actor: "user"
+        action: "Searches for 'service mesh configuration'"
+      - actor: "system"
+        action: "Detects ambiguity: multiple distinct project contexts match with similar relevance scores (within 0.05 cosine similarity)"
+      - actor: "system"
+        action: "Asks clarifying question: 'I found documentation about service mesh configuration for several projects. Which are you looking for?' with options listed"
+      - actor: "user"
+        action: "Selects 'Project Atlas' from the options"
+      - actor: "system"
+        action: "Re-ranks results filtered to Project Atlas context, generates synthesized answer"
+      - actor: "system"
+        action: "Displays refined answer with sources from Project Atlas documentation only"
+    expected_outcome: >
+      User gets a targeted, accurate answer after one clarifying interaction. Clarifying
+      question is concise, shows no more than 5 options, and is actionable. Total interaction
+      time remains under 20 seconds including user selection time.
+    failure_mode: >
+      If clarification flow fails, fall back to displaying all results grouped by project
+      context. Do not blend results from different projects into a single answer.
+    signals_to_capture:
+      - name: "clarification_trigger_rate"
+        type: "rate"
+        target: "< 20% of queries"
+      - name: "clarification_success_rate"
+        type: "rate"
+        target: "> 90%"
+    runtime_checks:
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "clarification_count_exceeded"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S004"
+    name: "Access control enforcement - restricted document filtered from results"
+    source: "spec"
+    priority: "critical"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-5"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "Search query matches a restricted HR policy document the user does not have access to in Confluence"
+      - "Query also matches some publicly accessible documents"
+    steps:
+      - actor: "system"
+        action: "Retrieves relevant document chunks including restricted HR policy document"
+      - actor: "system"
+        action: "Access control filter checks user permissions against source system ACLs, removes restricted document chunks"
+      - actor: "user"
+        action: "Searches for 'employee termination process'"
+      - actor: "system"
+        action: "Displays only results from documents the user can access. No indication that a restricted document was matched."
+    expected_outcome: >
+      User never sees content from the restricted document. No metadata, titles, or snippets
+      from restricted docs appear in results. If no accessible results remain after filtering,
+      the 'no results' message is displayed. Access control filtering is logged for audit.
+    failure_mode: >
+      If access control filtering fails or restricted content leaks into results, this is an
+      E2 critical escalation. Block result display entirely, show a generic error message,
+      and trigger incident response.
+    signals_to_capture:
+      - name: "access_control_filter_applied"
+        type: "boolean"
+        target: "true"
+      - name: "restricted_content_exposure"
+        type: "boolean"
+        target: "false"
+    runtime_checks:
+      - name: "access_control_bypass"
+        target: "0"
+      - name: "restricted_content_in_response"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S005"
+    name: "System degradation - connector failure with graceful fallback"
+    source: "spec"
+    priority: "critical"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-5"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-2"
+      - "TE-3"
+      - "TE-5"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "Confluence connector is experiencing timeouts (> 5s response time)"
+      - "GitHub Wiki, Notion, and Google Docs connectors are healthy"
+    steps:
+      - actor: "user"
+        action: "Submits a search query"
+      - actor: "system"
+        action: "Initiates retrieval from all four connectors. Confluence connector times out after 5 seconds."
+      - actor: "system"
+        action: "Enters error recovery state, marks Confluence as degraded, proceeds with results from remaining three connectors"
+      - actor: "system"
+        action: "Generates answer from available results, displays notice: 'Some sources are temporarily unavailable. Results may be incomplete.'"
+    expected_outcome: >
+      User gets partial results with clear explanation of degradation. Search does not fail
+      entirely due to one connector outage. Degraded source is identified in the notice.
+      Results from healthy connectors are accurate and properly cited.
+    failure_mode: >
+      If degraded mode fails to activate and the entire search errors out, this is an E1
+      urgent escalation. Display a user-friendly error and notify the on-call team.
+    signals_to_capture:
+      - name: "connector_failure_detected"
+        type: "boolean"
+        target: "true"
+      - name: "degraded_mode_activated"
+        type: "boolean"
+        target: "true"
+      - name: "partial_results_served"
+        type: "boolean"
+        target: "true"
+    runtime_checks:
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "state_violation"
+        target: "0"
+      - name: "total_search_failure_on_partial_outage"
+        target: "0"
+    automation_status: "none"
+
+  - id: "S006"
+    name: "Multi-source answer synthesis with inline citations"
+    source: "spec"
+    priority: "important"
+    state_path:
+      - "ST-1"
+      - "ST-2"
+      - "ST-3"
+      - "ST-1"
+    escalation_class: "E0"
+    trust_envelope_categories:
+      - "TE-1"
+      - "TE-2"
+      - "TE-3"
+    preconditions:
+      - "User is authenticated via SSO"
+      - "All connectors are healthy"
+      - "The queried topic spans documentation in at least 3 different source systems"
+    steps:
+      - actor: "user"
+        action: "Searches for 'authentication flow for mobile clients'"
+      - actor: "system"
+        action: "Retrieves relevant chunks from Confluence (architecture doc), GitHub Wiki (implementation notes), and Notion (API reference)"
+      - actor: "system"
+        action: "Synthesizes a coherent answer combining information from all three sources with inline citations [1], [2], [3]"
+      - actor: "system"
+        action: "Displays the answer with a sources panel listing each cited document with title, source system, and direct link"
+    expected_outcome: >
+      Answer is coherent, accurate, and properly attributes each claim to its source document.
+      User can verify any claim by clicking the inline citation. Citations link directly to
+      the relevant section of the original document when possible.
+    failure_mode: >
+      If synthesis produces contradictory information from different sources, the system must
+      flag the contradiction explicitly in the answer rather than choosing one version silently.
+      Example: 'Note: the architecture doc and implementation notes describe different auth
+      flows. Please verify which is current.'
+    signals_to_capture:
+      - name: "multi_source_citation_count"
+        type: "count"
+        target: ">= 2 sources"
+      - name: "contradiction_detection"
+        type: "boolean"
+        target: "tracking only"
+      - name: "citation_accuracy"
+        type: "rate"
+        target: "> 95%"
+    runtime_checks:
+      - name: "trust_envelope_violation"
+        target: "0"
+      - name: "uncited_claim_in_answer"
+        target: "0"
+    automation_status: "none"
+
+# LEARN phase additions:
+# Add production- or incident-discovered scenarios below with `source` set to
+# production/incident and include discovery metadata.
