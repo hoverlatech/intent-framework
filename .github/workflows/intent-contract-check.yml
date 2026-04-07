@@ -1,0 +1,66 @@
+# INTENT Framework v0.5 — reference GitHub Actions adapter.
+#
+# This workflow is one implementation of the portable validator at
+# tools/validate-intent-contract.py. The validator itself has no
+# dependency on GitHub Actions; teams on GitLab CI, CircleCI, Jenkins,
+# or pre-commit hooks should be able to copy the same idea in a few
+# lines. See docs/reference-adapters/github-actions.md for adaptation
+# notes.
+
+name: Intent Contract Check
+
+# Run on every PR that touches a contract, the schema, or the validator.
+on:
+  pull_request:
+    paths:
+      - "**/intent-contract*.yaml"
+      - "**/intent-contract*.yml"
+      - "schemas/**"
+      - "tools/validate-intent-contract.py"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      # Fetch enough history that `git diff` against the base branch works.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The validator's only dependencies. Pinning is optional — the
+      # validator targets stable APIs of both libraries.
+      - name: Install validator dependencies
+        run: pip install pyyaml jsonschema
+
+      # Discover changed contract files. We compare against the PR base
+      # branch rather than HEAD~1 so the check works for multi-commit PRs
+      # and for force-pushed branches.
+      - name: Find changed Intent Contract files
+        id: changed
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          CHANGED=$(git diff --name-only --diff-filter=AM \
+            "origin/${{ github.base_ref }}...HEAD" \
+            | grep -E '(^|/)intent-contract.*\.ya?ml$' || true)
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      # Skip cleanly when nothing relevant changed — e.g. a schema-only PR.
+      - name: Run validator
+        if: steps.changed.outputs.files != ''
+        run: |
+          echo "Validating:"
+          echo "${{ steps.changed.outputs.files }}"
+          echo
+          xargs -r python tools/validate-intent-contract.py <<< "${{ steps.changed.outputs.files }}"
+
+      - name: No contracts changed
+        if: steps.changed.outputs.files == ''
+        run: echo "No Intent Contract files changed in this PR. Skipping."
