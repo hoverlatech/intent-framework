@@ -1,0 +1,119 @@
+# Example: Medium-risk Intent Contract
+# Scenario: add server-side pagination to a public-facing /v1/orders API.
+# Risk: Medium (user-facing API change, schema-affecting) -> P2 / A2.
+
+feature_name: "Paginate /v1/orders list endpoint"
+branch: "204-orders-pagination"
+date: "2026-04-07"
+phase: "FRAME"
+
+problem_statement:
+  who_affected: "Customers integrating against /v1/orders, especially merchants with >1000 orders"
+  current_state: "The endpoint returns the full result set; large merchants experience 30s+ responses and gateway timeouts."
+  impact_of_inaction: "Sustained timeouts during peak hours; one enterprise customer has threatened to churn."
+
+desired_outcomes:
+  - "p95 latency on /v1/orders drops below 800ms for merchants with up to 50,000 orders."
+  - "Zero gateway timeouts on /v1/orders for one full week post-launch."
+  - "Existing integrations continue to work without modification on the first call."
+
+constraints:
+  - "Must remain backwards compatible: a request with no pagination params returns first page with default size."
+  - "Cursor-based pagination only — no offset/limit (consistency with rest of public API)."
+  - "Cursors must be opaque and stable across deploys."
+  - "Must not expose internal IDs in cursor payloads."
+
+non_goals:
+  - "Adding filtering or sort parameters."
+  - "Migrating other list endpoints (separate contracts will follow)."
+
+user_context:
+  primary_user: "Merchant integrating /v1/orders into their ERP"
+  secondary_users:
+    - "Internal services that consume /v1/orders"
+  current_workflow: "Client polls /v1/orders, parses full payload, dedupes locally."
+  expected_workflow: "Client requests pages of 100 with a cursor, follows next-page links until exhausted."
+
+quality_bar:
+  performance: "p95 < 800ms for any single page; cursor decoding < 5ms."
+  accessibility: "N/A — backend API."
+  error_handling: "Invalid or expired cursors return 400 with stable error code 'invalid_cursor'."
+  design: "Pagination envelope must match the existing /v1/customers shape exactly."
+
+scenarios:
+  - id: "S1"
+    name: "First-page request with no params"
+    type: "happy"
+    preconditions: "Merchant has 5,000 orders."
+    steps:
+      - "Client GETs /v1/orders"
+      - "Server returns first 100 orders + next cursor"
+    expected_outcome: "Response includes data[], pagination.next_cursor, pagination.has_more=true."
+    failure_mode: "Old behavior returns all 5,000 rows in one payload."
+
+  - id: "S2"
+    name: "Walk full result set with cursor"
+    type: "happy"
+    preconditions: "Merchant has 250 orders, page_size=100."
+    steps:
+      - "Client GETs /v1/orders"
+      - "Client follows next_cursor twice"
+    expected_outcome: "Three pages returned (100, 100, 50). has_more=false on the last page."
+    failure_mode: "Cursor pagination skips or duplicates rows."
+
+  - id: "S3"
+    name: "Backwards-compatibility regression"
+    type: "edge"
+    preconditions: "Existing client code that does not understand pagination envelope."
+    steps:
+      - "Legacy client GETs /v1/orders without parsing pagination fields"
+    expected_outcome: "Client still reads data[] correctly for the first page."
+    failure_mode: "Envelope shape change crashes legacy parsers."
+
+  - id: "S4"
+    name: "Expired cursor is rejected cleanly"
+    type: "failure"
+    preconditions: "Cursor was issued before a schema migration that invalidated it."
+    steps:
+      - "Client retries with stale cursor"
+    expected_outcome: "400 response with error_code=invalid_cursor and a human-readable message."
+    failure_mode: "Server 500s, leaks stack trace, or returns inconsistent data."
+
+proof_plan:
+  risk_tier: "Medium"
+  risk_rationale: "Public API change affecting paying customers; schema-shaped change with backwards-compat surface."
+  proof_tier: "P2"
+  proof_rationale: "Scenario Bank pass plus contract tests against the public API spec."
+  autonomy_tier: "A2"
+  autonomy_rationale: "Agent implements end-to-end; humans review every PR before merge."
+  evidence_required:
+    - "All four scenarios pass in CI"
+    - "Contract tests against /v1/orders OpenAPI spec pass"
+    - "Latency benchmark (50k-row merchant) recorded in PR"
+    - "Backwards-compat smoke test against three legacy SDK versions"
+
+runtime_governance:
+  required: "No"
+  why: "Deterministic API endpoint; no live AI components in the request path."
+  trust_envelope_version: "N/A"
+  escalation_contract_version: "N/A"
+  interaction_state_model_version: "N/A"
+
+open_questions:
+  - priority: "Medium"
+    question: "Default page_size — 50 or 100?"
+  - priority: "Low"
+    question: "Should we emit a deprecation header on unpaginated requests?"
+
+review_checklist:
+  outcomes_measurable: true
+  constraints_explicit: true
+  scenarios_complete: true
+  risk_tier_assigned: true
+  proof_tier_assigned: true
+  autonomy_tier_assigned: true
+  runtime_governance_complete: true
+  constitution_compliant: true
+  no_contract_contradictions: true
+  high_priority_questions_resolved: true
+  non_goals_explicit: true

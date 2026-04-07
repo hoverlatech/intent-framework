@@ -1,0 +1,104 @@
+# Example: Low-risk Intent Contract
+# Scenario: tighten the empty-state copy on an internal admin dashboard.
+# Risk: Low (internal tooling, no PII, easily reversible) -> P1 / A3.
+
+feature_name: "Admin dashboard empty-state copy refresh"
+branch: "118-admin-empty-state-copy"
+date: "2026-04-07"
+phase: "FRAME"
+
+problem_statement:
+  who_affected: "Internal support agents using the admin dashboard"
+  current_state: "Empty states show generic 'No data' text with no next-step guidance."
+  impact_of_inaction: "New support hires file duplicate tickets asking how to seed test data."
+
+desired_outcomes:
+  - "Every empty state on the admin dashboard explains why it is empty and links to the next action."
+  - "Support onboarding tickets tagged 'empty-state-confusion' drop to zero within one sprint."
+
+constraints:
+  - "Copy must stay under 140 characters per empty state."
+  - "No new translations required (English-only internal tool)."
+  - "Must reuse existing EmptyState component; no new components."
+
+non_goals:
+  - "Redesigning the dashboard layout."
+  - "Adding analytics events for empty-state views."
+
+user_context:
+  primary_user: "Internal support agent"
+  secondary_users:
+    - "New support hires in onboarding"
+  current_workflow: "Agent lands on a tab, sees 'No data', pings #support-help."
+  expected_workflow: "Agent lands on a tab, reads contextual empty state, follows the linked action."
+
+quality_bar:
+  performance: "No measurable change in render time."
+  accessibility: "Empty-state text must be reachable by screen readers; link must be keyboard-focusable."
+  error_handling: "N/A — copy-only change."
+  design: "Use existing EmptyState typography tokens; no new colors."
+
+scenarios:
+  - id: "S1"
+    name: "Agent opens an empty Tickets tab"
+    type: "happy"
+    preconditions: "User has no assigned tickets."
+    steps:
+      - "Agent navigates to /admin/tickets"
+      - "System renders updated empty state"
+    expected_outcome: "Empty state displays new copy and a 'Seed test data' link."
+    failure_mode: "Old generic copy still appears."
+
+  - id: "S2"
+    name: "Agent on a small viewport"
+    type: "edge"
+    preconditions: "Browser width 320px."
+    steps:
+      - "Agent opens dashboard on mobile-sized window"
+    expected_outcome: "Empty state copy wraps without horizontal scroll."
+    failure_mode: "Text overflow breaks layout."
+
+  - id: "S3"
+    name: "EmptyState component fails to load"
+    type: "failure"
+    preconditions: "Network blocks the EmptyState chunk."
+    steps:
+      - "Agent navigates to /admin/tickets"
+    expected_outcome: "Page degrades to plain 'No data' text without throwing."
+    failure_mode: "Whole tab crashes if EmptyState is required."
+
+proof_plan:
+  risk_tier: "Low"
+  risk_rationale: "Copy-only change, internal tool, fully reversible via revert."
+  proof_tier: "P1"
+  proof_rationale: "Manual walkthrough plus existing snapshot tests are sufficient."
+  autonomy_tier: "A3"
+  autonomy_rationale: "Agent can implement and merge under exception-only review."
+  evidence_required:
+    - "Snapshot tests updated and passing"
+    - "Manual walkthrough recorded in PR description"
+    - "Reviewer sign-off on copy"
+
+runtime_governance:
+  required: "No"
+  why: "Internal tool with no live AI outputs to end users."
+  trust_envelope_version: "N/A"
+  escalation_contract_version: "N/A"
+  interaction_state_model_version: "N/A"
+
+open_questions:
+  - priority: "Low"
+    question: "Should the seed-data link be gated behind a feature flag?"
+
+review_checklist:
+  outcomes_measurable: true
+  constraints_explicit: true
+  scenarios_complete: true
+  risk_tier_assigned: true
+  proof_tier_assigned: true
+  autonomy_tier_assigned: true
+  runtime_governance_complete: true
+  constitution_compliant: true
+  no_contract_contradictions: true
+  high_priority_questions_resolved: true
+  non_goals_explicit: true
