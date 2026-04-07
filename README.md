@@ -16,6 +16,14 @@ INTENT operates as the top layer in a three-layer stack:
 
 INTENT is tool-agnostic. It composes with any spec-driven methodology and any AI coding tool. The governance layer defines the rules. The engineering layer enforces them. The execution layer operates within them.
 
+## Get Started
+
+New to INTENT? Start here, in order:
+
+1. **[Do I Need INTENT?](docs/guides/do-i-need-intent.md)** — A 5-question decision tree to figure out which artifacts you actually need before adopting anything.
+2. **[Quickstart](docs/guides/quickstart.md)** — Setup plus a practical Day 1–30 path from your first Constitution to a contract gate in CI.
+3. **[GitHub Actions Reference Adapter](docs/reference-adapters/github-actions.md)** — Drop-in CI check that validates Intent Contracts on every PR. Portable to any CI system.
+
 ## Core Concepts
 
 ### Constitution

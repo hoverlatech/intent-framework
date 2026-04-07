@@ -8,6 +8,19 @@
 
 ---
 
+## Before you start: what you actually need
+
+INTENT splits into two artifact sets. Adopt only what applies to you.
+
+| Set | Adopt when | Artifacts |
+|---|---|---|
+| **Always-required** | Any team where AI agents write production code, or any change touching auth/payments/PII/infra | Constitution, Intent Contract, Scenario Bank, Proof Report |
+| **Live-agents-only** | You have AI making live decisions for end users without per-action human review | Trust Envelope, Escalation Contract, Interaction State Model |
+
+If you do not have live agents in production, **skip the live-agents-only set.** Adding them too early is the most common reason teams stall. See [Do I Need INTENT?](./do-i-need-intent.md) for the full decision tree.
+
+---
+
 ## Prerequisites
 
 - A Git repository for your project
@@ -77,6 +90,27 @@ The Constitution is your project's supreme governing document. Every agent inter
 - **Amendment Process:** How the Constitution changes over time.
 
 Do not overthink this. Start with rules you already follow but have never written down. You will refine the Constitution as you learn.
+
+---
+
+## A practical Day 1–30 path
+
+If you adopt everything at once you will bounce off the framework. Use this 30-day path instead.
+
+**Days 1–10 — Establish the floor**
+- Draft a Constitution. One page is fine. Capture rules you already follow but have never written down.
+- Write your first Intent Contract for one **medium-risk** change you are about to ship. Not your largest project — your next normal one.
+- Seed your Scenario Bank from three recent bugs. Real failures make better scenarios than imagined ones.
+
+**Days 11–20 — Make it enforceable**
+- Wire the [portable validator](../../tools/validate-intent-contract.py) into CI using the [GitHub Actions reference adapter](../reference-adapters/github-actions.md) or the equivalent in your stack.
+- Require an Intent Contract for every medium- or high-risk change. Low-risk work can still ship without one.
+- Run your first Proof Report end-to-end on one feature. Note what was awkward; fix the awkward parts before scaling.
+
+**Days 21–30 — Calibrate**
+- Review drift: where did the implementation diverge from the contract? Update the contract or the code, not both.
+- Pick one low-risk workflow and raise its autonomy tier (e.g. A2 → A3). Watch what happens.
+- **Only now** consider runtime artifacts (Trust Envelope, Escalation Contract, Interaction State Model) — and only if you have live production agents. If you do not, stop here and keep iterating.
 
 ---
 
