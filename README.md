@@ -1,3 +1,5 @@
+> **This repository is mirrored from the canonical source at [hoverlatech/intent-framework](https://github.com/hoverlatech/intent-framework), maintained by [Hoverla Tech](https://hoverlatech.com).**
+
 # INTENT Framework
 
 **Version:** v0.6
