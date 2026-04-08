@@ -1,5 +1,7 @@
 # INTENT Framework
 
+**Version:** v0.6
+
 A governance operating model for AI-native product development.
 
 INTENT provides the missing governance layer for teams where AI agents do the execution. It defines how decisions get made, what evidence is required, how much autonomy agents receive, and how live AI systems stay within bounds. INTENT sits above your engineering methodology and above your agent tooling.
@@ -23,6 +25,7 @@ New to INTENT? Start here, in order:
 1. **[Do I Need INTENT?](docs/guides/do-i-need-intent.md)** — A 5-question decision tree to figure out which artifacts you actually need before adopting anything.
 2. **[Quickstart](docs/guides/quickstart.md)** — Setup plus a practical Day 1–30 path from your first Constitution to a contract gate in CI.
 3. **[GitHub Actions Reference Adapter](docs/reference-adapters/github-actions.md)** — Drop-in CI check that validates Intent Contracts on every PR. Portable to any CI system.
+4. **[30/60/90 Rollout Plan](docs/reference/rollout-30-60-90.md)** — Gradual adoption path for teams introducing INTENT incrementally.
 
 ## Core Concepts
 
@@ -136,6 +139,12 @@ Runtime governance is required when the system's live outputs or actions can aff
 
 See [docs/concepts/runtime-governance.md](docs/concepts/runtime-governance.md) | Templates: [templates/trust-envelope-template.md](templates/trust-envelope-template.md), [templates/escalation-contract-template.md](templates/escalation-contract-template.md), [templates/interaction-state-model-template.md](templates/interaction-state-model-template.md)
 
+## Enforcement
+
+INTENT v0.6 ships a machine-readable Intent Contract schema and a portable validator that runs under any CI system with no framework runtime dependencies. A GitHub Actions reference adapter drops in as a PR check.
+
+See [tools/README.md](tools/README.md) and [docs/reference-adapters/github-actions.md](docs/reference-adapters/github-actions.md).
+
 ## Roles
 
 INTENT defines four roles. On small teams, one person may fill multiple roles.
@@ -150,17 +159,6 @@ INTENT defines four roles. On small teams, one person may fill multiple roles.
 Three team models: **Solo Director** (one person, all roles), **Thin Team** (2-4 people, 1-2 roles each), **Swarm** (larger teams with shared roles).
 
 See [docs/reference/roles.md](docs/reference/roles.md)
-
-## Getting Started
-
-The fastest path to using INTENT:
-
-1. Read the [Quickstart Guide](docs/guides/quickstart.md)
-2. Copy the [templates](templates/) into your project
-3. Write your first [Constitution](templates/constitution-starter.md) and [Intent Contract](templates/intent-contract-template.md)
-4. Review the [worked example](examples/sample-project/) to see how all the pieces fit together
-
-For a gradual adoption path, see the [30/60/90 Rollout Plan](docs/reference/rollout-30-60-90.md).
 
 ## Spec Kit Integration
 
@@ -184,7 +182,7 @@ intent-framework/
 ├── CONTRIBUTING.md
 ├── .gitignore
 ├── docs/
-│   ├── concepts/          # Core framework concepts
+│   ├── concepts/            # Core framework concepts
 │   │   ├── intent-contracts.md
 │   │   ├── constitution.md
 │   │   ├── proof-tiers.md
@@ -194,14 +192,25 @@ intent-framework/
 │   │   ├── drift-detection.md
 │   │   ├── scenario-banks.md
 │   │   └── runtime-governance.md
-│   ├── guides/            # How-to guides
+│   ├── guides/              # How-to guides
+│   │   ├── do-i-need-intent.md
 │   │   ├── quickstart.md
 │   │   └── tool-integration.md
-│   └── reference/         # Reference material
-│       ├── roles.md
-│       ├── intent-vs-scrum.md
-│       └── rollout-30-60-90.md
-├── templates/             # Ready-to-use templates
+│   ├── reference/           # Reference material
+│   │   ├── roles.md
+│   │   ├── intent-vs-scrum.md
+│   │   └── rollout-30-60-90.md
+│   └── reference-adapters/  # CI enforcement adapters
+│       └── github-actions.md
+├── schemas/                 # Machine-readable Intent Contract schema
+│   ├── intent-contract.schema.yaml
+│   └── examples/
+│       ├── low-risk.intent-contract.yaml
+│       └── medium-risk.intent-contract.yaml
+├── tools/                   # Portable validator
+│   ├── README.md
+│   └── validate-intent-contract.py
+├── templates/               # Ready-to-use templates
 │   ├── intent-contract-template.md
 │   ├── constitution-starter.md
 │   ├── scenarios-template.yaml
@@ -210,8 +219,8 @@ intent-framework/
 │   ├── trust-envelope-template.md
 │   ├── escalation-contract-template.md
 │   └── interaction-state-model-template.md
-└── examples/              # Worked example
-    └── sample-project/    # "DocSearch" - AI-powered doc search
+└── examples/                # Worked example
+    └── sample-project/      # "DocSearch" - AI-powered doc search
         ├── constitution.md
         ├── intent-contract.md
         ├── scenarios.yaml
